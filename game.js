@@ -5,7 +5,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
 // Camera
-const d = 10;
+const d = 5;
 const aspect = window.innerWidth / window.innerHeight;
 const camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
 camera.position.set(20, 20, 20);
@@ -41,11 +41,9 @@ function createNoiseTexture(width, height, color1, color2, scale = 1) {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
 
-    // Fill background
     ctx.fillStyle = color1;
     ctx.fillRect(0, 0, width, height);
 
-    // Add noise
     for (let i = 0; i < width * height * scale; i++) {
         const x = Math.random() * width;
         const y = Math.random() * height;
@@ -67,25 +65,21 @@ function createTileTexture(size = 512, tilesX = 4, tilesY = 4, colorBase = '#8c8
     canvas.height = size;
     const ctx = canvas.getContext('2d');
 
-    // Background (Grout)
     ctx.fillStyle = colorGrout;
     ctx.fillRect(0, 0, size, size);
 
     const tileW = size / tilesX;
     const tileH = size / tilesY;
-    const gap = 4; // pixels
+    const gap = 4;
 
     for(let y=0; y<tilesY; y++) {
         for(let x=0; x<tilesX; x++) {
-            // Randomize tile color
             const hue = 40 + Math.random() * 10;
             const sat = 10 + Math.random() * 10;
             const lig = 50 + Math.random() * 10;
             ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lig}%)`;
-
             ctx.fillRect(x*tileW + gap, y*tileH + gap, tileW - gap*2, tileH - gap*2);
 
-            // Highlight
             ctx.fillStyle = 'rgba(255,255,255,0.1)';
             ctx.fillRect(x*tileW + gap, y*tileH + gap, tileW - gap*2, 2);
             ctx.fillRect(x*tileW + gap, y*tileH + gap, 2, tileH - gap*2);
@@ -104,23 +98,19 @@ function createWallTexture() {
     canvas.height = 512;
     const ctx = canvas.getContext('2d');
 
-    // Base Plaster
     ctx.fillStyle = '#c0b0a0';
     ctx.fillRect(0, 0, 512, 512);
 
-    // Noise
     for(let i=0; i<5000; i++) {
         ctx.fillStyle = '#a09080';
         ctx.globalAlpha = 0.1;
         ctx.fillRect(Math.random()*512, Math.random()*512, 2, 2);
     }
 
-    // Dado (bottom part paint)
     ctx.globalAlpha = 1.0;
     ctx.fillStyle = '#803030';
     ctx.fillRect(0, 400, 512, 112);
 
-    // Top Cornice line
     ctx.fillStyle = '#e0d0c0';
     ctx.fillRect(0, 400, 512, 10);
 
@@ -131,25 +121,18 @@ function createWallTexture() {
 // --- Materials ---
 const texFloor = createTileTexture(512, 4, 4);
 const matFloor = new THREE.MeshStandardMaterial({ map: texFloor, roughness: 0.8 });
-
 const texWall = createWallTexture();
 const matWall = new THREE.MeshStandardMaterial({ map: texWall, roughness: 0.9 });
-
 const texMarble = createNoiseTexture(256, 256, '#ffffff', '#cccccc', 2);
 const matColumn = new THREE.MeshStandardMaterial({ map: texMarble, roughness: 0.4, metalness: 0.1 });
+const matWater = new THREE.MeshStandardMaterial({ color: 0x204070, transparent: true, opacity: 0.7, roughness: 0.1, metalness: 0.8 });
 
-const matWater = new THREE.MeshStandardMaterial({
-    color: 0x204070,
-    transparent: true,
-    opacity: 0.7,
-    roughness: 0.1,
-    metalness: 0.8
-});
-
-const matPlayer = new THREE.MeshStandardMaterial({ color: 0xf0f0e0 });
-const matPlayerSash = new THREE.MeshStandardMaterial({ color: 0x880000 });
-const matPlayerSkin = new THREE.MeshStandardMaterial({ color: 0xffccaa });
-const matPlayerHair = new THREE.MeshStandardMaterial({ color: 0x4a3020 });
+// Character Materials
+const matSkin = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.5 });
+const matHair = new THREE.MeshStandardMaterial({ color: 0x3b2e25, roughness: 0.9 });
+const matTunic = new THREE.MeshStandardMaterial({ color: 0xf5f5f0, roughness: 0.7 }); // Off-white
+const matSash = new THREE.MeshStandardMaterial({ color: 0x990000, roughness: 0.8 }); // Deep Red
+const matSandals = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9 });
 
 // Helper Geometries
 const geoBox = new THREE.BoxGeometry(1, 1, 1);
@@ -200,7 +183,6 @@ for(let z=0; z<levelSize; z++) {
         const posX = x - offset;
         const posZ = z - offset;
 
-        // Base Floor
         const floor = new THREE.Mesh(geoBox, matFloor);
         floor.position.set(posX, -0.05, posZ);
         floor.scale.set(1, 0.1, 1);
@@ -208,7 +190,6 @@ for(let z=0; z<levelSize; z++) {
         mapGroup.add(floor);
 
         if (type === 1) {
-            // Wall
             const wall = new THREE.Mesh(geoBox, matWall);
             wall.position.set(posX, 1, posZ);
             wall.scale.set(1, 2, 1);
@@ -216,9 +197,7 @@ for(let z=0; z<levelSize; z++) {
             wall.receiveShadow = true;
             mapGroup.add(wall);
         } else if (type === 2) {
-            // Water
             mapGroup.remove(floor);
-
             const basin = new THREE.Mesh(geoBox, matFloor);
             basin.position.set(posX, -0.55, posZ);
             basin.scale.set(1, 0.1, 1);
@@ -229,14 +208,12 @@ for(let z=0; z<levelSize; z++) {
             water.scale.set(1, 0.6, 1);
             mapGroup.add(water);
         } else if (type === 3) {
-            // Column
             const col = new THREE.Mesh(geoCyl, matColumn);
             col.position.set(posX, 1, posZ);
             col.castShadow = true;
             col.receiveShadow = true;
             mapGroup.add(col);
 
-            // Base
             const base = new THREE.Mesh(geoBox, matFloor);
             base.position.set(posX, 0.1, posZ);
             base.scale.set(0.8, 0.2, 0.8);
@@ -244,7 +221,6 @@ for(let z=0; z<levelSize; z++) {
             base.receiveShadow = true;
             mapGroup.add(base);
 
-            // Capital
             const cap = new THREE.Mesh(geoBox, matFloor);
             cap.position.set(posX, 1.9, posZ);
             cap.scale.set(0.8, 0.2, 0.8);
@@ -256,12 +232,11 @@ for(let z=0; z<levelSize; z++) {
 }
 scene.add(mapGroup);
 
-// --- Props Logic ---
+// --- Props ---
 function createBrazier(x, z) {
     const brazierGroup = new THREE.Group();
     brazierGroup.position.set(x, 0, z);
 
-    // Legs
     const legGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.8);
     const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
     for(let i=0; i<3; i++) {
@@ -272,28 +247,21 @@ function createBrazier(x, z) {
         leg.translateZ(0.2);
         brazierGroup.add(leg);
     }
-
-    // Bowl
     const bowlGeo = new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI/2);
     const bowlMat = new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.6, roughness: 0.3 });
     const bowl = new THREE.Mesh(bowlGeo, bowlMat);
     bowl.position.y = 0.8;
     bowl.rotation.x = Math.PI;
     brazierGroup.add(bowl);
-
-    // Fire
     const fireGeo = new THREE.ConeGeometry(0.15, 0.3, 8);
     const fireMat = new THREE.MeshBasicMaterial({ color: 0xff4500 });
     const fire = new THREE.Mesh(fireGeo, fireMat);
     fire.position.y = 0.9;
     brazierGroup.add(fire);
-
-    // Light
     const fireLight = new THREE.PointLight(0xffaa00, 2, 5);
     fireLight.position.y = 1.2;
     fireLight.castShadow = true;
     brazierGroup.add(fireLight);
-
     return brazierGroup;
 }
 
@@ -301,90 +269,160 @@ function createBench(x, z, angle=0) {
     const benchGroup = new THREE.Group();
     benchGroup.position.set(x, 0, z);
     benchGroup.rotation.y = angle;
-
-    // Seat
     const seatGeo = new THREE.BoxGeometry(1.2, 0.1, 0.4);
     const seat = new THREE.Mesh(seatGeo, matFloor);
     seat.position.y = 0.4;
     seat.castShadow = true;
     benchGroup.add(seat);
-
-    // Legs
     const legGeo = new THREE.BoxGeometry(0.1, 0.4, 0.35);
     const leg1 = new THREE.Mesh(legGeo, matFloor);
     leg1.position.set(-0.5, 0.2, 0);
     benchGroup.add(leg1);
-
     const leg2 = new THREE.Mesh(legGeo, matFloor);
     leg2.position.set(0.5, 0.2, 0);
     benchGroup.add(leg2);
-
     return benchGroup;
 }
 
-// Add Props
 mapGroup.add(createBrazier(offset - 2.5, offset - 2.5));
 mapGroup.add(createBrazier(-(offset - 2.5), offset - 2.5));
 mapGroup.add(createBrazier(offset - 2.5, -(offset - 2.5)));
 mapGroup.add(createBrazier(-(offset - 2.5), -(offset - 2.5)));
-
 mapGroup.add(createBench(0, offset - 1.5));
 mapGroup.add(createBench(3, offset - 1.5));
 mapGroup.add(createBench(-3, offset - 1.5));
 
+// --- Detailed Player Construction ---
+function createSenator() {
+    const group = new THREE.Group();
 
-// --- Player Setup ---
-const playerGroup = new THREE.Group();
+    // 1. Legs (Pivots for animation)
+    const legLGroup = new THREE.Group();
+    legLGroup.position.set(-0.12, 0.7, 0); // Hip joint
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.75), matSkin);
+    legL.position.y = -0.375; // Center of leg relative to pivot
+    legL.castShadow = true;
+    legLGroup.add(legL);
+    // Sandal L
+    const sandalL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.18), matSandals);
+    sandalL.position.y = -0.75;
+    sandalL.position.z = 0.05;
+    legLGroup.add(sandalL);
+    group.add(legLGroup);
 
-const fold1 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 1.4, 12), matPlayer);
-fold1.position.y = 0.7;
-fold1.castShadow = true;
-playerGroup.add(fold1);
+    const legRGroup = new THREE.Group();
+    legRGroup.position.set(0.12, 0.7, 0);
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.75), matSkin);
+    legR.position.y = -0.375;
+    legR.castShadow = true;
+    legRGroup.add(legR);
+    // Sandal R
+    const sandalR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.05, 0.18), matSandals);
+    sandalR.position.y = -0.75;
+    sandalR.position.z = 0.05;
+    legRGroup.add(sandalR);
+    group.add(legRGroup);
 
-const sash = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.6), matPlayerSash);
-sash.position.set(0, 1.0, 0);
-sash.rotation.z = Math.PI / 4;
-sash.rotation.y = 0.2;
-sash.scale.set(1, 1, 0.2);
-sash.castShadow = true;
-playerGroup.add(sash);
+    // 2. Torso / Tunic
+    // Main body cylinder
+    const tunic = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.25, 0.9, 10), matTunic);
+    tunic.position.y = 0.95; // Center of torso
+    tunic.castShadow = true;
+    group.add(tunic);
 
-const headGeo = new THREE.SphereGeometry(0.22, 16, 16);
-const head = new THREE.Mesh(headGeo, matPlayerSkin);
-head.position.y = 1.55;
-head.castShadow = true;
-playerGroup.add(head);
+    // Sash (Laticlavius) - Vertical stripes
+    const sash = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 0.05), matSash);
+    sash.position.set(0.1, 0.95, 0.21); // Front Right
+    group.add(sash);
+    const sash2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 0.05), matSash);
+    sash2.position.set(-0.1, 0.95, 0.21); // Front Left
+    group.add(sash2);
 
-const nose = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.04), matPlayerSkin);
-nose.position.set(0, 1.55, 0.2);
-playerGroup.add(nose);
+    // 3. Toga Drape
+    // A thick curved shape wrapping around shoulder
+    const drapeGeo = new THREE.TorusGeometry(0.26, 0.12, 8, 20, 4); // Partial torus
+    const drape = new THREE.Mesh(drapeGeo, matTunic);
+    drape.position.set(0, 1.1, 0);
+    drape.rotation.z = -0.4;
+    drape.rotation.x = 0.2;
+    drape.scale.set(1, 1, 1.2);
+    drape.castShadow = true;
+    group.add(drape);
 
-const wreathGeo = new THREE.TorusGeometry(0.23, 0.02, 8, 20);
-const matWreath = new THREE.MeshStandardMaterial({ color: 0x228822 });
-const wreath = new THREE.Mesh(wreathGeo, matWreath);
-wreath.position.set(0, 1.65, 0);
-wreath.rotation.x = Math.PI / 2;
-playerGroup.add(wreath);
+    // 4. Arms
+    const armLGroup = new THREE.Group();
+    armLGroup.position.set(-0.28, 1.25, 0); // Shoulder
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.6), matSkin);
+    armL.position.y = -0.3;
+    armL.castShadow = true;
+    armLGroup.add(armL);
+    group.add(armLGroup);
 
-const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6), matPlayerSkin);
-armL.position.set(-0.3, 1.1, 0);
-armL.rotation.z = Math.PI / 8;
-playerGroup.add(armL);
+    const armRGroup = new THREE.Group();
+    armRGroup.position.set(0.28, 1.25, 0);
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.6), matSkin);
+    armR.position.y = -0.3;
+    armR.castShadow = true;
+    armRGroup.add(armR);
+    group.add(armRGroup);
 
-const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6), matPlayerSkin);
-armR.position.set(0.3, 1.1, 0);
-armR.rotation.z = -Math.PI / 8;
-playerGroup.add(armR);
+    // 5. Head
+    const headGroup = new THREE.Group();
+    headGroup.position.y = 1.4;
 
-scene.add(playerGroup);
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.15), matSkin);
+    neck.position.y = 0;
+    headGroup.add(neck);
+
+    // Skull
+    const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16), matSkin);
+    headMesh.position.y = 0.15;
+    headMesh.castShadow = true;
+    headGroup.add(headMesh);
+
+    // Hair
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 16, 0, Math.PI * 2, 0, Math.PI/2.5), matHair);
+    hair.position.y = 0.18;
+    hair.rotation.x = Math.PI;
+    headGroup.add(hair);
+
+    // Nose
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.04), matSkin);
+    nose.position.set(0, 0.15, 0.15);
+    headGroup.add(nose);
+
+    // Wreath
+    const wreath = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.015, 6, 16), new THREE.MeshStandardMaterial({ color: 0x228822 }));
+    wreath.position.set(0, 0.22, 0);
+    wreath.rotation.x = Math.PI/2;
+    wreath.rotation.y = 0.2;
+    headGroup.add(wreath);
+
+    group.add(headGroup);
+
+    // Expose parts for animation
+    group.userData = {
+        legL: legLGroup,
+        legR: legRGroup,
+        armL: armLGroup,
+        armR: armRGroup,
+        head: headGroup
+    };
+
+    return group;
+}
+
+const player = createSenator();
+scene.add(player);
 
 // Initial Player Position
 let playerGridX = Math.floor(levelSize/2);
 let playerGridZ = levelSize - 2;
-playerGroup.position.set(playerGridX - offset, 0, playerGridZ - offset);
+player.position.set(playerGridX - offset, 0, playerGridZ - offset);
 
 // --- Animation & Logic ---
-const targetPos = new THREE.Vector3().copy(playerGroup.position);
+const targetPos = new THREE.Vector3().copy(player.position);
 let isMoving = false;
 const moveSpeed = 5.0;
 
@@ -399,19 +437,36 @@ window.addEventListener('keyup', (e) => {
 
 const clock = new THREE.Clock();
 
+function updatePlayerAnimation(dt, isMoving) {
+    const parts = player.userData;
+    const time = clock.getElapsedTime() * 10; // Speed of animation
+
+    if (isMoving) {
+        // Walk Cycle
+        parts.legL.rotation.x = Math.sin(time) * 0.5;
+        parts.legR.rotation.x = Math.sin(time + Math.PI) * 0.5;
+        parts.armL.rotation.x = Math.sin(time + Math.PI) * 0.5; // Opposite to leg
+        parts.armR.rotation.x = Math.sin(time) * 0.5;
+
+        // Bobbing
+        player.position.y = Math.abs(Math.sin(time*2)) * 0.05;
+    } else {
+        // Idle
+        parts.legL.rotation.x = 0;
+        parts.legR.rotation.x = 0;
+        parts.armL.rotation.x = Math.sin(time * 0.5) * 0.05; // Gentle sway
+        parts.armR.rotation.x = Math.sin(time * 0.5 + 1) * 0.05;
+        player.position.y = 0;
+    }
+}
+
 function animate() {
     requestAnimationFrame(animate);
-
     const dt = clock.getDelta();
-
-    // Bobbing animation for player
-    const time = clock.elapsedTime;
-    playerGroup.position.y = Math.sin(time * 2) * 0.02;
 
     if (!isMoving) {
         let dx = 0;
         let dz = 0;
-
         if (keys.ArrowUp) { dx = -1; dz = -1; }
         else if (keys.ArrowDown) { dx = 1; dz = 1; }
         else if (keys.ArrowLeft) { dx = -1; dz = 1; }
@@ -420,38 +475,38 @@ function animate() {
         if (dx !== 0 || dz !== 0) {
             const nextX = playerGridX + dx;
             const nextZ = playerGridZ + dz;
-
             if (nextX >= 0 && nextX < levelSize && nextZ >= 0 && nextZ < levelSize) {
                 if (mapData[nextZ][nextX] === 0) {
                     playerGridX = nextX;
                     playerGridZ = nextZ;
-
                     targetPos.set(playerGridX - offset, 0, playerGridZ - offset);
                     isMoving = true;
-
+                    // Rotation
                     const angle = Math.atan2(dx, dz);
-                    playerGroup.rotation.y = angle;
+                    // Smooth rotation? For now instant snap to face direction or lerp
+                    player.rotation.y = angle;
                 }
             }
         }
     } else {
         const step = moveSpeed * dt;
-        const dist = new THREE.Vector3(playerGroup.position.x, 0, playerGroup.position.z).distanceTo(targetPos);
-
+        const dist = new THREE.Vector3(player.position.x, 0, player.position.z).distanceTo(targetPos);
         if (dist <= step) {
-            playerGroup.position.x = targetPos.x;
-            playerGroup.position.z = targetPos.z;
+            player.position.x = targetPos.x;
+            player.position.z = targetPos.z;
             isMoving = false;
         } else {
-            const currentPosFlat = new THREE.Vector3(playerGroup.position.x, 0, playerGroup.position.z);
+            const currentPosFlat = new THREE.Vector3(player.position.x, 0, player.position.z);
             const dir = new THREE.Vector3().subVectors(targetPos, currentPosFlat).normalize();
-            playerGroup.position.add(dir.multiplyScalar(step));
+            player.position.add(dir.multiplyScalar(step));
         }
     }
 
-    camera.position.x = playerGroup.position.x + 20;
-    camera.position.z = playerGroup.position.z + 20;
-    camera.lookAt(playerGroup.position);
+    updatePlayerAnimation(dt, isMoving);
+
+    camera.position.x = player.position.x + 20;
+    camera.position.z = player.position.z + 20;
+    camera.lookAt(player.position);
 
     renderer.render(scene, camera);
 }

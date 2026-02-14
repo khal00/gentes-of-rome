@@ -2,9 +2,9 @@ const config = {
     type: Phaser.AUTO,
     width: 800,
     height: 600,
-    backgroundColor: '#2d2d2d',
+    backgroundColor: '#1a1a1a', // Darker background for contrast
     parent: 'game-container',
-    pixelArt: true,
+    pixelArt: true, // Essential for the UO look
     scene: {
         preload: preload,
         create: create,
@@ -17,145 +17,291 @@ const game = new Phaser.Game(config);
 const TILE_WIDTH = 64;
 const TILE_HEIGHT = 32;
 
+// --- Helper: Draw Noise ---
+function addNoise(graphics, width, height, density = 0.1, color = 0x000000, alpha = 0.1) {
+    graphics.fillStyle(color, alpha);
+    for (let i = 0; i < width * height * density; i++) {
+        const x = Math.random() * width;
+        const y = Math.random() * height;
+        graphics.fillRect(x, y, 1, 1);
+    }
+}
+
+// --- Helper: Draw Isometric Tile Shape ---
+function drawIsoTile(graphics, color, border = null) {
+    graphics.fillStyle(color);
+    graphics.beginPath();
+    graphics.moveTo(0, TILE_HEIGHT / 2);
+    graphics.lineTo(TILE_WIDTH / 2, 0);
+    graphics.lineTo(TILE_WIDTH, TILE_HEIGHT / 2);
+    graphics.lineTo(TILE_WIDTH / 2, TILE_HEIGHT);
+    graphics.closePath();
+    graphics.fillPath();
+
+    if (border !== null) {
+        graphics.lineStyle(1, border);
+        graphics.strokePath();
+    }
+}
+
 function preload() {
-    // --- Generate Floor Tile (Marble) ---
+    // --- Generate Floor Tile (Textured Stone) ---
+    // UO floors often look like cobblestone or rough cut stone.
     const floorGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    floorGraphics.fillStyle(0xe0e0e0);
+
+    // Base Color (Earth/Stone)
+    const baseColor = 0x8c8c7e; // Muted grey-brown
+    drawIsoTile(floorGraphics, baseColor, 0x5a5a50); // Darker border
+
+    // Add "Cobblestone" texture
+    floorGraphics.lineStyle(1, 0x6b6b5f, 0.6); // Grout color
+    // Draw a grid pattern rotated to fit isometric view? No, just draw on the diamond.
+    // Let's draw some random "stones".
+    // Or just simple noise for grit.
+    addNoise(floorGraphics, TILE_WIDTH, TILE_HEIGHT, 0.4, 0x333333, 0.1); // Dark noise
+    addNoise(floorGraphics, TILE_WIDTH, TILE_HEIGHT, 0.2, 0xffffff, 0.1); // Light specs
+
+    // Highlight top-left edge for depth
+    floorGraphics.lineStyle(1, 0xaaaa99, 0.5);
     floorGraphics.beginPath();
     floorGraphics.moveTo(0, TILE_HEIGHT / 2);
     floorGraphics.lineTo(TILE_WIDTH / 2, 0);
-    floorGraphics.lineTo(TILE_WIDTH, TILE_HEIGHT / 2);
-    floorGraphics.lineTo(TILE_WIDTH / 2, TILE_HEIGHT);
-    floorGraphics.closePath();
-    floorGraphics.fillPath();
-    floorGraphics.lineStyle(1, 0xaaaaaa);
     floorGraphics.strokePath();
-    // Marble veins
-    floorGraphics.lineStyle(1, 0xcccccc, 0.5);
-    floorGraphics.beginPath();
-    floorGraphics.moveTo(10, 10); floorGraphics.lineTo(20, 20);
-    floorGraphics.moveTo(40, 10); floorGraphics.lineTo(30, 25);
-    floorGraphics.strokePath();
+
     floorGraphics.generateTexture('floor', TILE_WIDTH, TILE_HEIGHT);
 
-    // --- Generate Water Tile (Impluvium) ---
+
+    // --- Generate Water Tile (Deep Blue with Ripples) ---
     const waterGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    waterGraphics.fillStyle(0x40a0ff, 0.8);
-    waterGraphics.beginPath();
-    waterGraphics.moveTo(0, TILE_HEIGHT / 2);
-    waterGraphics.lineTo(TILE_WIDTH / 2, 0);
-    waterGraphics.lineTo(TILE_WIDTH, TILE_HEIGHT / 2);
-    waterGraphics.lineTo(TILE_WIDTH / 2, TILE_HEIGHT);
-    waterGraphics.closePath();
-    waterGraphics.fillPath();
+    const waterColor = 0x204070; // Deep UO water blue
+    drawIsoTile(waterGraphics, waterColor);
+
+    // Ripples (lighter blue lines)
+    waterGraphics.lineStyle(1, 0x406090, 0.5);
+    for(let i=0; i<5; i++) {
+        const y = Math.random() * TILE_HEIGHT;
+        const w = Math.random() * 20 + 10;
+        const x = Math.random() * (TILE_WIDTH - w);
+        waterGraphics.beginPath();
+        waterGraphics.moveTo(x, y);
+        waterGraphics.lineTo(x + w, y);
+        waterGraphics.strokePath();
+    }
     waterGraphics.generateTexture('water', TILE_WIDTH, TILE_HEIGHT);
 
-    // --- Generate Wall Tile (Stone Block) ---
+
+    // --- Generate Wall Tile (Brick/Block Pattern) ---
     const w = TILE_WIDTH;
     const h = TILE_HEIGHT;
-    const tallness = 48;
+    const tallness = 64; // Taller walls look more imposing
     const totalH = h + tallness;
 
     const wallGraphics = this.make.graphics({ x: 0, y: 0, add: false });
 
-    // Left Face
-    wallGraphics.fillStyle(0xa09080);
-    wallGraphics.beginPath();
-    wallGraphics.moveTo(0, h/2 + tallness);
-    wallGraphics.lineTo(w/2, h + tallness);
-    wallGraphics.lineTo(w/2, h);
-    wallGraphics.lineTo(0, h/2);
-    wallGraphics.closePath();
-    wallGraphics.fillPath();
-    wallGraphics.lineStyle(1, 0x504030);
-    wallGraphics.strokePath();
+    // Function to draw a wall face with bricks
+    const drawFace = (path, baseColor, shadeColor) => {
+        // Draw base
+        wallGraphics.fillStyle(baseColor);
+        wallGraphics.beginPath();
+        path.forEach((pt, i) => {
+            if (i===0) wallGraphics.moveTo(pt.x, pt.y);
+            else wallGraphics.lineTo(pt.x, pt.y);
+        });
+        wallGraphics.closePath();
+        wallGraphics.fillPath();
 
-    // Right Face
-    wallGraphics.fillStyle(0xc0b0a0);
-    wallGraphics.beginPath();
-    wallGraphics.moveTo(w/2, h + tallness);
-    wallGraphics.lineTo(w, h/2 + tallness);
-    wallGraphics.lineTo(w, h/2);
-    wallGraphics.lineTo(w/2, h);
-    wallGraphics.closePath();
-    wallGraphics.fillPath();
-    wallGraphics.lineStyle(1, 0x504030);
-    wallGraphics.strokePath();
+        // Draw "Bricks"
+        wallGraphics.lineStyle(1, 0x4a4036, 0.6); // Dark grout
+        // Horizontal lines every 12px
+        let yStart = path[0].y; // Bottom-left of face (roughly)
+        // Wait, logic for bricks on skewed faces is tricky.
+        // Let's just draw simple horizontal lines across the bounding box and clip? No clipping in Graphics.
+        // Just draw lines parallel to the top/bottom edges.
 
-    // Top Face
-    wallGraphics.fillStyle(0xe0d0c0);
-    wallGraphics.beginPath();
-    wallGraphics.moveTo(0, h/2);
-    wallGraphics.lineTo(w/2, 0);
-    wallGraphics.lineTo(w, h/2);
-    wallGraphics.lineTo(w/2, h);
-    wallGraphics.closePath();
-    wallGraphics.fillPath();
-    wallGraphics.lineStyle(1, 0x504030);
-    wallGraphics.strokePath();
+        // Simpler: Just add noise and a border.
+        wallGraphics.lineStyle(1, 0x3a3026);
+        wallGraphics.strokePath();
+
+        // Add Texture
+        // We can't easily noise a path without masking.
+        // Let's just draw speckles in the bounding box range, ignoring overflow (lazy but might work if minimal).
+    };
+
+    // Colors
+    const colorLeft = 0x857565; // Shadow side
+    const colorRight = 0xa89888; // Light side
+    const colorTop = 0xc0b0a0; // Top
+
+    // Left Face Path
+    const pLeft = [
+        {x: 0, y: h/2 + tallness},
+        {x: w/2, y: h + tallness},
+        {x: w/2, y: h},
+        {x: 0, y: h/2}
+    ];
+    // Right Face Path
+    const pRight = [
+        {x: w/2, y: h + tallness},
+        {x: w, y: h/2 + tallness},
+        {x: w, y: h/2},
+        {x: w/2, y: h}
+    ];
+    // Top Face Path
+    const pTop = [
+        {x: 0, y: h/2},
+        {x: w/2, y: 0},
+        {x: w, y: h/2},
+        {x: w/2, y: h}
+    ];
+
+    drawFace(pLeft, colorLeft);
+    // Add brick lines for Left Face (sloped up-right)
+    wallGraphics.lineStyle(1, 0x554433, 0.5);
+    for(let i=0; i<5; i++) {
+        let yOff = i * 12;
+        wallGraphics.beginPath();
+        // Parallel to bottom edge (0, h/2+tallness) -> (w/2, h+tallness)
+        // Slope is dy/dx = (h/2) / (w/2) = h/w = 32/64 = 0.5.
+        // We want horizontal lines in 3D, which map to lines with slope 0.5 in Left Face?
+        // No, in iso, horizontal wall lines are sloped.
+        // Left face is the Y-axis wall. Lines parallel to ground (X-Y plane)? No, Z lines are vertical.
+        // Bricks are horizontal layers.
+        // So lines should follow the "X" axis direction for the Left face?
+        // Left face runs along Y axis visually? No.
+        // Let's look at the shape.
+        // Left face: Bottom edge goes from (0, 80) to (32, 96) (approx).
+        // Top edge goes from (0, 32) to (32, 48).
+        // Lines should connect (0, y) to (32, y+16).
+        wallGraphics.moveTo(0, h/2 + tallness - yOff);
+        wallGraphics.lineTo(w/2, h + tallness - yOff);
+        wallGraphics.strokePath();
+    }
+
+
+    drawFace(pRight, colorRight);
+    // Brick lines for Right Face
+    // Sloped down-right.
+    // Connect (32, y) to (64, y-16).
+    for(let i=0; i<5; i++) {
+        let yOff = i * 12;
+        wallGraphics.beginPath();
+        wallGraphics.moveTo(w/2, h + tallness - yOff);
+        wallGraphics.lineTo(w, h/2 + tallness - yOff);
+        wallGraphics.strokePath();
+    }
+
+    drawFace(pTop, colorTop);
 
     wallGraphics.generateTexture('wall', w, totalH);
 
-    // --- Generate Column (Marble Pillar) ---
+
+    // --- Generate Column (Doric Style) ---
     const colGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    const colW = 16;
-    const colH = 96;
+    const colW = 18;
+    const colH = 80; // shorter, stouter
+    const centerX = TILE_WIDTH / 2;
 
-    // Base
+    // Draw Shadow (behind)
+    colGraphics.fillStyle(0x000000, 0.3);
+    colGraphics.fillEllipse(centerX, colH, 24, 12);
+
+    // Draw Pillar Body (Gradient)
+    // Dark sides, light center to simulate roundness
+    const steps = 5;
+    const stepW = colW / steps;
+    for(let i=0; i<steps; i++) {
+        // Calculate brightness: mid is bright, sides dark
+        let brightness = 255;
+        let dist = Math.abs(i - (steps-1)/2); // 0 (center) to 2 (side)
+        brightness -= dist * 40;
+        const c = Phaser.Display.Color.GetColor(brightness, brightness, brightness);
+
+        colGraphics.fillStyle(c);
+        colGraphics.fillRect(centerX - colW/2 + i*stepW, 10, stepW + 1, colH - 20); // +1 to cover gaps
+    }
+
+    // Base (Rectangular stone)
+    colGraphics.fillStyle(0x999999);
+    drawIsoTile(colGraphics, 0x999999); // Reuse iso tile function? No, need small rect.
+    // Manual small iso base
+    colGraphics.beginPath();
+    colGraphics.moveTo(centerX - 12, colH - 5);
+    colGraphics.lineTo(centerX, colH + 2);
+    colGraphics.lineTo(centerX + 12, colH - 5);
+    colGraphics.lineTo(centerX, colH - 12);
+    colGraphics.closePath();
+    colGraphics.fillPath();
+    // Side of base
+    colGraphics.fillStyle(0x777777);
+    colGraphics.fillRect(centerX - 12, colH - 5, 24, 6); // Simplified
+
+    // Capital (Top)
+    colGraphics.fillStyle(0xdddddd);
+    colGraphics.fillRect(centerX - 14, 0, 28, 8);
     colGraphics.fillStyle(0xbbbbbb);
-    colGraphics.fillRect((TILE_WIDTH - 24)/2, colH - 12, 24, 12);
+    colGraphics.fillRect(centerX - 12, 8, 24, 4);
 
-    // Shaft
-    colGraphics.fillStyle(0xffffff);
-    colGraphics.fillRect((TILE_WIDTH - colW)/2, 12, colW, colH - 24);
-    // Fluting (lines)
-    colGraphics.lineStyle(1, 0xeeeeee);
-    colGraphics.moveTo(TILE_WIDTH/2 - 4, 12); colGraphics.lineTo(TILE_WIDTH/2 - 4, colH - 12);
-    colGraphics.moveTo(TILE_WIDTH/2 + 4, 12); colGraphics.lineTo(TILE_WIDTH/2 + 4, colH - 12);
-    colGraphics.strokePath();
+    colGraphics.generateTexture('column', TILE_WIDTH, colH + 10);
 
-    // Capital
-    colGraphics.fillStyle(0xbbbbbb);
-    colGraphics.fillRect((TILE_WIDTH - 24)/2, 0, 24, 12);
 
-    colGraphics.generateTexture('column', TILE_WIDTH, colH);
-
-    // --- Generate Player (Roman in Toga) ---
+    // --- Generate Player (Pixel Art Style) ---
+    // Drawing pixel by pixel for a "sprite" look
     const playerGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    // Shadow
-    playerGraphics.fillStyle(0x000000, 0.3);
-    playerGraphics.fillEllipse(16, 48, 20, 10);
+    const px = 4; // Pixel size multiplier
 
-    // Body (White Toga)
-    playerGraphics.fillStyle(0xf0f0f0);
-    playerGraphics.beginPath();
-    playerGraphics.moveTo(16, 10);
-    playerGraphics.lineTo(28, 48);
-    playerGraphics.lineTo(4, 48);
-    playerGraphics.closePath();
-    playerGraphics.fillPath();
+    // Shadow
+    playerGraphics.fillStyle(0x000000, 0.4);
+    playerGraphics.fillEllipse(4 * px, 11 * px, 6 * px, 3 * px);
+
+    // Robe Color
+    const robeLight = 0xf0f0e0;
+    const robeDark = 0xc0c0b0;
+    const skin = 0xffccaa;
+    const hair = 0x4a3020;
+
+    // Helper to draw "pixel"
+    const drawPixel = (x, y, color) => {
+        playerGraphics.fillStyle(color);
+        playerGraphics.fillRect(x * px, y * px, px, px);
+    };
+
+    // Draw Body (Simplified Humanoid 8x12 grid)
     // Head
-    playerGraphics.fillStyle(0xffccaa);
-    playerGraphics.fillCircle(16, 8, 7);
-    // Sash
-    playerGraphics.lineStyle(2, 0x800000);
-    playerGraphics.beginPath();
-    playerGraphics.moveTo(20, 10);
-    playerGraphics.lineTo(10, 40);
-    playerGraphics.strokePath();
-    playerGraphics.generateTexture('player', 32, 54);
+    drawPixel(3, 0, hair); drawPixel(4, 0, hair);
+    drawPixel(2, 1, hair); drawPixel(3, 1, skin); drawPixel(4, 1, skin); drawPixel(5, 1, hair);
+    drawPixel(3, 2, skin); drawPixel(4, 2, skin);
+
+    // Torso / Toga
+    // Left shoulder (bare?)
+    drawPixel(2, 3, skin); drawPixel(3, 3, robeLight); drawPixel(4, 3, robeLight); drawPixel(5, 3, robeLight);
+    drawPixel(2, 4, skin); drawPixel(3, 4, robeLight); drawPixel(4, 4, robeDark); drawPixel(5, 4, robeLight);
+    drawPixel(3, 5, robeLight); drawPixel(4, 5, robeDark); drawPixel(5, 5, robeLight);
+
+    // Legs / Skirt
+    drawPixel(3, 6, robeLight); drawPixel(4, 6, robeDark); drawPixel(5, 6, robeLight);
+    drawPixel(3, 7, robeLight); drawPixel(4, 7, robeDark); drawPixel(5, 7, robeLight);
+    drawPixel(3, 8, robeLight); drawPixel(4, 8, robeLight); drawPixel(5, 8, robeLight);
+
+    // Feet
+    drawPixel(3, 9, 0x664422); // Sandals
+    drawPixel(5, 9, 0x664422);
+
+    // Arms
+    drawPixel(1, 4, skin); drawPixel(1, 5, skin); // Left Arm
+    drawPixel(6, 4, skin); drawPixel(6, 5, skin); // Right Arm
+
+    // Sash (Red)
+    drawPixel(4, 3, 0x880000);
+    drawPixel(3, 4, 0x880000);
+    drawPixel(2, 5, 0x880000);
+
+    playerGraphics.generateTexture('player', 8 * px, 12 * px);
 }
 
 function cartToIso(cartX, cartY) {
     const isoX = (cartX - cartY) * (TILE_WIDTH / 2);
     const isoY = (cartX + cartY) * (TILE_HEIGHT / 2);
     return { x: isoX, y: isoY };
-}
-
-function isoToCart(isoX, isoY) {
-    const cartX = (isoX / (TILE_WIDTH / 2) + isoY / (TILE_HEIGHT / 2)) / 2;
-    const cartY = (isoY / (TILE_HEIGHT / 2) - isoX / (TILE_WIDTH / 2)) / 2;
-    return { x: cartX, y: cartY };
 }
 
 let player;
@@ -167,7 +313,7 @@ let centerX = 400;
 let centerY = 150;
 
 function create() {
-    this.add.text(10, 10, 'Roman Atrium - Use Arrow Keys to Move', { font: '16px monospace', fill: '#ffffff' }).setScrollFactor(0);
+    this.add.text(10, 10, 'Roman Atrium (UO Style) - Arrow Keys to Move', { font: '16px "Times New Roman"', fill: '#cccccc' }).setScrollFactor(0);
 
     // Map definition
     const levelSize = 12;
@@ -208,9 +354,7 @@ function create() {
     mapData[center-2][center+1] = 3;
     mapData[center+1][center+1] = 3;
 
-    // Create a container for the map or just draw directly
-    // Direct drawing is fine for this size.
-
+    // Render Map
     for (let x = 0; x < levelSize; x++) {
         for (let y = 0; y < levelSize; y++) {
             const tileType = mapData[x][y];
@@ -232,7 +376,7 @@ function create() {
             // Draw Objects
             if (tileType === 1) {
                 const wall = this.add.image(screenX, screenY, 'wall');
-                wall.setOrigin(0.5, 0.8);
+                wall.setOrigin(0.5, 0.85); // Adjusted for taller wall
                 wall.setDepth(screenY);
             } else if (tileType === 3) {
                 const col = this.add.image(screenX, screenY, 'column');
@@ -243,26 +387,20 @@ function create() {
     }
 
     // Create Player
-    // Start near entrance
     const startX = Math.floor(levelSize/2);
     const startY = levelSize - 2;
 
-    // Store logical position on player object
     const startIso = cartToIso(startX, startY);
     player = this.add.image(centerX + startIso.x, centerY + startIso.y, 'player');
-    player.setOrigin(0.5, 0.9); // Feet at bottom
+    player.setOrigin(0.5, 0.9);
     player.setDepth(centerY + startIso.y);
     player.gridX = startX;
     player.gridY = startY;
 
-    // Camera follow
     this.cameras.main.startFollow(player, true, 0.05, 0.05);
-    this.cameras.main.setZoom(1.0);
+    this.cameras.main.setZoom(1.2); // Zoom in closer for pixel art feel
 
-    // Input
     cursors = this.input.keyboard.createCursorKeys();
-
-    // Movement cooldown
     player.nextMoveTime = 0;
 }
 
@@ -270,39 +408,34 @@ function update(time, delta) {
     if (!player) return;
 
     // Movement Logic
-    const speed = 150; // ms per step
+    const speed = 150;
     if (time > player.nextMoveTime) {
         let dx = 0;
         let dy = 0;
 
-        // Improved Isometric Movement (Visual Direction)
         if (cursors.up.isDown) {
-            dx = -1; dy = -1; // North (Visual Up)
+            dx = -1; dy = -1;
         } else if (cursors.down.isDown) {
-            dx = 1; dy = 1;   // South (Visual Down)
+            dx = 1; dy = 1;
         } else if (cursors.left.isDown) {
-            dx = -1; dy = 1;  // West (Visual Left)
+            dx = -1; dy = 1;
         } else if (cursors.right.isDown) {
-            dx = 1; dy = -1;  // East (Visual Right)
+            dx = 1; dy = -1;
         }
 
         if (dx !== 0 || dy !== 0) {
             const newX = player.gridX + dx;
             const newY = player.gridY + dy;
 
-            // Check bounds
             if (newX >= 0 && newX < mapWidth && newY >= 0 && newY < mapHeight) {
-                // Check collision
-                // 0 = Floor. Block everything else.
                 if (mapData[newX][newY] === 0) {
                     player.gridX = newX;
                     player.gridY = newY;
 
-                    // Update visual position
                     const pos = cartToIso(newX, newY);
                     player.x = centerX + pos.x;
                     player.y = centerY + pos.y;
-                    player.setDepth(player.y); // Update depth based on Y for correct sorting
+                    player.setDepth(player.y);
 
                     player.nextMoveTime = time + speed;
                 }
